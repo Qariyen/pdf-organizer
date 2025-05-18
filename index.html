@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Samling Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: #f4f6f9;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      font-size: 2rem;
+      color: #1a1a1a;
+    }
+    p.description {
+      max-width: 600px;
+      color: #555;
+      font-size: 1rem;
+      margin: 0.5rem 0 1.5rem;
+    }
+    .upload-box {
+      background: white;
+      border: 2px dashed #4a90e2;
+      padding: 30px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+    .upload-box input[type="file"] {
+      display: none;
+    }
+    .upload-label {
+      display: inline-block;
+      padding: 12px 20px;
+      background: #4a90e2;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    #fileList {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      color: #333;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 100%;
+      text-align: left;
+    }
+    .file-entry {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 12px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    #progressBar {
+      width: 100%;
+      height: 20px;
+      margin-top: 1rem;
+      background-color: #e0e0e0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #progressBar div {
+      height: 100%;
+      background-color: #4caf50;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    #status {
+      margin-top: 1.5rem;
+      font-weight: 600;
+      color: green;
+    }
+    button.generate {
+      margin-top: 2rem;
+      background: #28a745;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      color: #777;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gjør PDF dokumentene dine lettere tilgjengeilig</h1>
+    <p class="description">
+      Last opp dine PDF-notater, generer en ZIP-fil med en fin index.html, pakk den ut, åpne index.html i Chrome og legg den til som bokmerke for rask tilgang.
+    </p>
+  </header>
+
+  <div class="upload-box">
+    <label class="upload-label" for="fileInput">Velg PDF-filer (maks 200 MB totalt)</label>
+    <input type="file" id="fileInput" accept="application/pdf" multiple />
+    <div id="fileList"></div>
+    <div id="progressBar"><div></div></div>
+  </div>
+
+  <button class="generate" onclick="generateZip()">Last ned ZIP-fil</button>
+  <div id="status"></div>
+
+  <footer>
+    &copy; 2025 | STOVNER HOOD SCIENCE. Alt kjøres direkte i nettleseren. Ingen data lagres.
+  </footer>
+
+  <script>
+    let selectedFiles = [];
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    document.getElementById("fileInput").addEventListener("change", (event) => {
+      const newFiles = Array.from(event.target.files);
+      selectedFiles = selectedFiles.concat(newFiles);
+      updateFileList();
+    });
+
+    function updateFileList() {
+      const list = document.getElementById("fileList");
+      list.innerHTML = "";
+      let totalSize = 0;
+
+      selectedFiles.forEach(file => {
+        totalSize += file.size;
+        const entry = document.createElement("div");
+        entry.className = "file-entry";
+        entry.innerHTML = `<span>${file.name}</span><span>${formatBytes(file.size)}</span>`;
+        list.appendChild(entry);
+      });
+
+      const percentage = Math.min((totalSize / (200 * 1024 * 1024)) * 100, 100);
+      document.querySelector("#progressBar div").style.width = percentage + "%";
+
+      if (totalSize > 200 * 1024 * 1024) {
+        alert("Total filstørrelse overstiger 200 MB. Fjern noen filer og prøv igjen.");
+        selectedFiles = [];
+        updateFileList();
+      }
+    }
+
+    function generateZip() {
+      if (selectedFiles.length === 0) {
+        alert("Vennligst last opp PDF-filer først.");
+        return;
+      }
+
+      const zip = new JSZip();
+
+      // Define the style for the generated index.html
+      const style = `
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: #f0f2f5;
+          margin: 40px 20px;
+          color: #333;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        h2 {
+          margin-bottom: 30px;
+          font-weight: 700;
+          color: #222;
+        }
+        #pdf-list {
+          display: flex;
+          gap: 25px;
+          flex-wrap: wrap;
+          justify-content: center;
+          max-width: 960px;
+        }
+        .pdf-card {
+          background: #fff;
+          width: 260px;
+          border-radius: 12px;
+          box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 25px 20px 30px;
+          transition: transform 0.25s ease, box-shadow 0.3s ease;
+          user-select: none;
+          text-decoration: none;
+        }
+        .pdf-card:hover {
+          box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+          transform: translateY(-6px);
+        }
+        .pdf-icon {
+          width: 80px;
+          height: 110px;
+          background: linear-gradient(135deg, #4a90e2 0%, #357ABD 100%);
+          border-radius: 6px;
+          box-shadow: 0 6px 12px rgba(53, 122, 189, 0.6);
+          position: relative;
+          margin-bottom: 18px;
+        }
+        .pdf-icon::before {
+          content: "";
+          position: absolute;
+          top: 12px;
+          left: 16px;
+          width: 48px;
+          height: 76px;
+          background: #fff;
+          border-radius: 2px;
+          box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .pdf-icon::after {
+          content: "";
+          position: absolute;
+          top: 12px;
+          left: 56px;
+          width: 12px;
+          height: 12px;
+          background: #cfd9e9;
+          clip-path: polygon(0 0, 100% 0, 100% 100%);
+          border-radius: 0 2px 0 0;
+          box-shadow: inset 0 0 3px rgba(0,0,0,0.15);
+        }
+        .pdf-title {
+          font-size: 1rem;
+          font-weight: 600;
+          text-align: center;
+          color: #222;
+          line-height: 1.3;
+        }
+      `;
+
+      // Start building the index.html content
+      let indexHtml = `
+        <!DOCTYPE html>
+        <html lang="no">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Mine PDF-er</title>
+          <style>${style}</style>
+        </head>
+        <body>
+          <h2>Mine PDF-er</h2>
+          <div id="pdf-list">
+      `;
+
+      // Add each PDF file to the zip and to the index.html
+      const readPromises = selectedFiles.map(file =>
+        new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            // Add file to zip
+            zip.file(file.name, e.target.result);
+            
+            // Create entry in index.html
+            const title = file.name.replace(/\.pdf$/i, "").replace(/[_\-]/g, " ");
+            indexHtml += `
+              <a href="${file.name}" class="pdf-card" target="_blank" rel="noopener noreferrer">
+                <div class="pdf-icon"></div>
+                <div class="pdf-title">${title}</div>
+              </a>
+            `;
+            resolve();
+          };
+          reader.readAsArrayBuffer(file);
+        })
+      );
+
+      // Finalize the zip file after all files are processed
+      Promise.all(readPromises).then(() => {
+        // Complete the HTML
+        indexHtml += `
+          </div>
+        </body>
+        </html>
+        `;
+        
+        // Add the index.html to the zip
+        zip.file("index.html", indexHtml);
+
+        document.getElementById("status").innerText = "Lager ZIP-fil...";
+
+        // Generate and download the zip file
+        zip.generateAsync({ type: "blob" }).then(content => {
+          saveAs(content, "pdf-samling.zip");
+          document.getElementById("status").innerText = "Ferdig! ZIP lastet ned.";
+        });
+      });
+    }
+  </script>
+</body>
+</html>

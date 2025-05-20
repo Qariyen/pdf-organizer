@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="no">
 <head>
@@ -17,6 +18,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      min-height: 100vh;
     }
     header {
       text-align: center;
@@ -103,6 +106,14 @@
       color: #777;
       font-size: 0.9rem;
     }
+    .watermark {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      color: #999;
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -127,6 +138,8 @@
   <footer>
     &copy; 2025 | STOVNER HOOD SCIENCE. Alt kjøres direkte i nettleseren. Ingen data lagres.
   </footer>
+  
+  <div class="watermark">laget av AQ - SHS</div>
 
   <script>
     let selectedFiles = [];
@@ -184,6 +197,8 @@
           display: flex;
           flex-direction: column;
           align-items: center;
+          position: relative;
+          min-height: 100vh;
         }
         h2 {
           margin-bottom: 30px;
@@ -254,6 +269,14 @@
           color: #222;
           line-height: 1.3;
         }
+        .watermark {
+          position: fixed;
+          bottom: 10px;
+          left: 10px;
+          color: #999;
+          font-size: 0.8rem;
+          opacity: 0.7;
+        }
       `;
 
       // Start building the index.html content
@@ -295,9 +318,10 @@
 
       // Finalize the zip file after all files are processed
       Promise.all(readPromises).then(() => {
-        // Complete the HTML
+        // Complete the HTML with watermark
         indexHtml += `
           </div>
+          <div class="watermark">laget av AQ</div>
         </body>
         </html>
         `;
